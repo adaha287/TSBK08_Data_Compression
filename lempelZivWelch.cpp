@@ -101,15 +101,27 @@ void lzwCompress(const char *fileName){
              */
         }
 
-            //if testWord don't exist in dictionary
+           // if testWord dont exist in dictionary
         else{
 
             knownIndex = getIndex(dictionary, knownWord);
+            if(knownIndex == (int16_t)570){
+               if(debug) cout << "This is weird?" << endl;
+            }
             output.push_back(knownIndex);
 
             sizeOfCompressed += ceil(log2(dictionary.size()));
+            if(dictionary.size() == 513){
+                if(debug )cout << "now what have we  here" << endl;
+            }
+            //cout << "Sending " << (int)knownIndex << " from ";
+            //for(int i = 0; i  <knownWord.size(); i++){
+            //    cout << (char)knownWord[i] << " ";
+            //}
+            //cout << endl;
             sendToOutput(outputStream, knownIndex, ceil(log2(dictionary.size())), intToSend, counter);
 
+            /*
             if(dictionary.size() == 4096){
                 cout << endl;
                 cout << "Dictionary is full, empty it!!" << endl;
@@ -125,10 +137,15 @@ void lzwCompress(const char *fileName){
                 knownWord.clear();
                 continue;
             }
-            else{
-                //add tuple with index of knownWord and last symbol of testWord to dictionary;
-                addWord(dictionary, knownIndex, (uint16_t)symbol);
+
+             */
+                //add tuple with index of knownWord and last symbol of testWord to dictionary
+            addWord(dictionary, knownIndex, (uint16_t)symbol);
+
+            if(dictionary.size() == 4096){
+                emptyDictionary(dictionary);
             }
+
             /*
             if(debug){ cout << "Dictionary now looks like: " << endl;
                 for(int q = 1; q < dictionary.size(); q++){
@@ -220,10 +237,15 @@ void lzwDecompress(const char *fileName){
 
     int16_t wordIndex = index;
     while(!input.eof()){
-        shouldRead = (int8_t)ceil(log2(dictionary.size()));
+        shouldRead = (int8_t)ceil(log2(dictionary.size()+1));
+        if(dictionary.size() == 511){
+            cout << "We are here" << endl;
+        }
         index = readIndex(input, dictionary, shouldRead, haveRead, readingSymbol);
-        if(debug) cout << "Index is: " << index << endl;
-        if(index < dictionary.size()){
+        if( index == 0){
+            cout << "Could not find index" << endl;
+        }
+        else if(index < dictionary.size()){
             //Make check for EMPTY_DICT and PSEUDO_EOF
             if(index == (int16_t)257){ //PSEUDO_EOF
                 cout << "Ending" << endl;
@@ -231,6 +253,8 @@ void lzwDecompress(const char *fileName){
                 break;
             }
             else if(index == (int16_t)258){ //CLEAR OUR DICT
+                //this should never be used
+                cout << "THIS SHOULD NOT BE VIEWED IF IMPLEMENTED CORRECT" << endl;
                 emptyDictionary(dictionary);
                 cout << "Dictionary is now size: " << (int)dictionary.size() << endl;
             }
@@ -254,6 +278,7 @@ void lzwDecompress(const char *fileName){
         else{
 
             cout << "Error in compressed index!" << endl;
+            output.close();
             exit(-2);
         }
     }
@@ -300,7 +325,9 @@ Send an index to the output stream
 ***/
 void sendToOutput(ofstream &out, int16_t last_index, int bits_needed, uint8_t &intToSend, int &counter){
 
-
+    if(bits_needed == 10){
+        cout << "interesting stuff" << endl;
+    }
     if(debug) cout << "Bits needed:" << bits_needed << endl;
     int bits[12] = {0};
     for(int i = 0; i < bits_needed; i++){
