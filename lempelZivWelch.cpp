@@ -244,11 +244,15 @@ void lzwDecompress(const char *fileName){
                 uint16_t newSymbol = writeSymbols(output, dictionary, index);
                 addWord(dictionary, wordIndex, newSymbol);
                 wordIndex = index;
-                if(dictionary.size() == 4095){
+                if(dictionary.size() == 4095 && emptied == false){
                     emptyDictionary(dictionary);
                     emptied = true;
                     output.flush();
-
+                }
+                else if(dictionary.size() == 4096){
+                    emptyDictionary(dictionary);
+                    emptied = true;
+                    output.flush();
                 }
             }
         }
@@ -258,7 +262,12 @@ void lzwDecompress(const char *fileName){
 
             addWord(dictionary, wordIndex, newSymbol);
             wordIndex = index;
-            if(dictionary.size() == 4095){
+            if(dictionary.size() == 4095 && emptied == false){
+                emptyDictionary(dictionary);
+                emptied = true;
+                output.flush();
+            }
+            else if(dictionary.size() == 4096){
                 emptyDictionary(dictionary);
                 emptied = true;
                 output.flush();
@@ -428,6 +437,6 @@ int16_t readIndex(ifstream &input, vector<tuple<int16_t, uint16_t>> &dictionary,
         haveRead++;
         i++;
     }
-    cout << "Reading " << returnIndex << " with " << (int)shouldRead << " bits" << endl;
+    //cout << "Reading " << returnIndex << " with " << (int)shouldRead << " bits" << endl;
     return returnIndex;
 }
