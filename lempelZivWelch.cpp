@@ -37,9 +37,7 @@ void lzwCompress(const char *fileName){
 
 
     vector<tuple<int16_t, uint16_t>> dictionary;
-    if(debug) cout << "Initialize the dictionary" << endl;
     initializeDictionary(dictionary);
-    if(debug) cout << "Initialization complete" << endl;
 
 
     vector<uint16_t> knownWord;
@@ -58,15 +56,17 @@ void lzwCompress(const char *fileName){
 
         symbol = (uint8_t)input.get();
         signs += 1;
-        if(debug) cout << endl << "START: new symbol is: " << (uint16_t)symbol << endl;
 
 
         //if end_of_file, push what we haven't pushed yet and then the PSEUDO_EOF
         if(input.eof()) {
-            if(debug) cout << "END_OF_FILE!!" << endl;
-            if(debug) cout << "getIndex EOF" << endl;
+
             sizeOfCompressed += ceil(log2(dictionary.size()));
             sendToOutput(outputStream, getIndex(dictionary, knownWord), ceil(log2(dictionary.size())), intToSend, counter);
+
+            output.push_back(dictionary.size());
+
+            output.push_back(ceil(log2(dictionary.size())));
             output.push_back(getIndex(dictionary, knownWord));
             if(debug) cout << "getIndex EOF_END" << endl;
             sizeOfCompressed += ceil(log2(dictionary.size()));
@@ -82,90 +82,60 @@ void lzwCompress(const char *fileName){
         }
 
         testWord = knownWord;
-        testWord.push_back((uint16_t)symbol);
+        uint16_t tmp_symbol = (uint16_t) symbol;
+        testWord.push_back(tmp_symbol);
 
-        if(debug) cout << "getIndex 1" << endl;
         index = getIndex(dictionary, testWord);
-        if(debug) cout << "Index1 is: " << index << endl;
-        if(debug) cout << "getIndex 1 end" << endl;
+
 
         //if testWord exist in dictionary
         if(index != -1){
             knownWord = testWord;
-
-            if(debug) cout << "Word exist at index: " << index;/* << " and is:" ;
-            for(int a = 0; a < knownWord.size(); a++){
-                cout << knownWord.at(a) << " ";
-            }
-            cout << endl;
-             */
         }
 
            // if testWord dont exist in dictionary
         else{
 
             knownIndex = getIndex(dictionary, knownWord);
-            if(knownIndex == (int16_t)570){
-               if(debug) cout << "This is weird?" << endl;
-            }
-            output.push_back(knownIndex);
 
+            output.push_back(dictionary.size());
+            output.push_back(ceil(log2(dictionary.size())));
+            output.push_back(knownIndex);
             sizeOfCompressed += ceil(log2(dictionary.size()));
-            if(dictionary.size() == 513){
-                if(debug )cout << "now what have we  here" << endl;
+
+            /*
+            cout << "Writing:" << knownIndex << " - ";
+            for(int i = 0; i < knownWord.size(); i++){
+                cout << (char)knownWord[i] << " ";
             }
-            //cout << "Sending " << (int)knownIndex << " from ";
-            //for(int i = 0; i  <knownWord.size(); i++){
-            //    cout << (char)knownWord[i] << " ";
-            //}
-            //cout << endl;
+            cout << endl;
+
+            */
             sendToOutput(outputStream, knownIndex, ceil(log2(dictionary.size())), intToSend, counter);
 
-            /*
-            if(dictionary.size() == 4096){
-                cout << endl;
-                cout << "Dictionary is full, empty it!!" << endl;
-
-                vector<uint16_t> emptyDict;
-                emptyDict.push_back((uint16_t)NEW_DICT);
-                int indexNewDict = getIndex(dictionary, emptyDict);
-                //last argument will always be 12 when dictionary has size 4096
-                sizeOfCompressed += ceil(log2(dictionary.size()));
-                sendToOutput(outputStream, indexNewDict, ceil(log2(dictionary.size())), intToSend, counter);
-                emptyDictionary(dictionary);
-                testWord.clear();
-                knownWord.clear();
-                continue;
-            }
-
-             */
-                //add tuple with index of knownWord and last symbol of testWord to dictionary
-            addWord(dictionary, knownIndex, (uint16_t)symbol);
+            addWord(dictionary, knownIndex, tmp_symbol);
 
             if(dictionary.size() == 4096){
                 emptyDictionary(dictionary);
+                outputStream.flush();
             }
 
-            /*
-            if(debug){ cout << "Dictionary now looks like: " << endl;
-                for(int q = 1; q < dictionary.size(); q++){
-                    cout << "Index: " << q << "<" << get<0>(dictionary[q]) << ", " << get<1>(dictionary[q]) << ">" << endl;
-                }
-                cout << endl << endl;
-            }
-             */
+
             testWord.clear();
             knownWord.clear();
-            knownWord.push_back((uint16_t)symbol);
+            knownWord.push_back(tmp_symbol);
         }
 
 
     }
     input.close();
 
+    /*
     for(int i = 0; i < output.size(); i++){
+        if(i % 3 == 0) cout << endl;
         cout << output[i] << " ";
     }
+    */
     cout << endl;
     cout << "Bits needed now:" << ceil(log2(dictionary.size())) << endl;
     cout << "size in bits: " << sizeOfCompressed << endl;
@@ -221,72 +191,104 @@ void lzwDecompress(const char *fileName){
      [7] go to [5];
      */
 
+    vector<int16_t > indexes;
     int8_t readingSymbol = (int8_t)input.get();
     int8_t haveRead = 0;
     int8_t shouldRead = (int8_t)ceil(log2(dictionary.size()));
     int16_t index = readIndex(input, dictionary, shouldRead, haveRead, readingSymbol);
+    bool emptied = false;
+
+    indexes.push_back(dictionary.size());
+    indexes.push_back(ceil(log2(dictionary.size())));
+    indexes.push_back(index);
 
     int16_t symbol = get<1>(dictionary[index]);
     if(symbol < 256) {
-        cout << "putting out: " << (uint8_t) symbol << endl;
+        //cout << "Writing first character: " << (uint8_t) symbol << endl;
         output.put((uint8_t) symbol);
     }
+    else if(symbol == 257) cout << "END, no input detected" << endl;
     else{
         cout << "Error reading first character" << endl;
     }
 
     int16_t wordIndex = index;
     while(!input.eof()){
-        shouldRead = (int8_t)ceil(log2(dictionary.size()+1));
-        if(dictionary.size() == 511){
-            cout << "We are here" << endl;
+        if(emptied){
+            shouldRead = (int8_t)ceil(log2(dictionary.size()));
         }
+        else{
+            shouldRead = (int8_t)ceil(log2(dictionary.size()+1));
+        }
+
+
         index = readIndex(input, dictionary, shouldRead, haveRead, readingSymbol);
+
+        indexes.push_back(dictionary.size());
+        indexes.push_back(ceil(log2(dictionary.size())));
+        indexes.push_back(index);
+        if(index == (int16_t)1023){
+            cout << "found it" << endl;
+        }
         if( index == 0){
             cout << "Could not find index" << endl;
         }
         else if(index < dictionary.size()){
-            //Make check for EMPTY_DICT and PSEUDO_EOF
             if(index == (int16_t)257){ //PSEUDO_EOF
                 cout << "Ending" << endl;
                 output.close();
                 break;
             }
-            else if(index == (int16_t)258){ //CLEAR OUR DICT
-                //this should never be used
-                cout << "THIS SHOULD NOT BE VIEWED IF IMPLEMENTED CORRECT" << endl;
-                emptyDictionary(dictionary);
-                cout << "Dictionary is now size: " << (int)dictionary.size() << endl;
-            }
             else {
                 //returns the last symbol in the index-chain (first letter in word)
                 uint16_t newSymbol = writeSymbols(output, dictionary, index);
-
                 addWord(dictionary, wordIndex, newSymbol);
                 wordIndex = index;
+                if(dictionary.size() == 4095){
+                    emptyDictionary(dictionary);
+                    emptied = true;
+                    output.flush();
+
+                }
             }
         }
         else if(index == (int16_t)dictionary.size()){
-            cout << "INDEX == DICT_SIZE" << endl;
-            cout << "Dictionary is now2 size: " << (int)dictionary.size() << endl;
             uint16_t newSymbol = writeSymbols(output, dictionary, wordIndex);
-
             output.put((int8_t) newSymbol);
 
             addWord(dictionary, wordIndex, newSymbol);
+            wordIndex = index;
+            if(dictionary.size() == 4095){
+                emptyDictionary(dictionary);
+                emptied = true;
+                output.flush();
+            }
         }
         else{
 
             cout << "Error in compressed index!" << endl;
             output.close();
-            exit(-2);
+            /*
+            cout <<"Dictionary size: " << dictionary.size() << endl;
+            for(int i = 0; i < indexes.size(); i++){
+                if(i % 3 == 0) cout << endl;
+                cout << indexes[i]<< " ";
+            }
+            cout << endl;
+             */
+            exit(-1);
         }
     }
+    cout <<"Dictionary size: " << dictionary.size() << endl;
+    for(int i = 0; i < indexes.size(); i++){
+        cout << indexes[i];
+    }
+    cout << endl;
 }
 
 
 /***
-Put first an EMPTY_CHAR, then 0-255, then also PSEDUO_EOF and NEW_DICT
+Put first an EMPTY_CHAR, then 0-255, then also PSEDUO_EOF in the dictionary
 ***/
 void initializeDictionary(vector<tuple<int16_t, uint16_t>> &dictionary){
     dictionary.push_back(tuple<int16_t, uint16_t>(NULL, EMPTY_CHAR));
@@ -294,9 +296,7 @@ void initializeDictionary(vector<tuple<int16_t, uint16_t>> &dictionary){
     for(int i = 0; i < 256; i++){
         dictionary.push_back(tuple<int16_t, uint16_t>((int16_t)0, (uint16_t)i));
     }
-
     dictionary.push_back(tuple<int16_t, uint16_t>(0, PSEUDO_EOF));
-    dictionary.push_back(tuple<int16_t, uint16_t>(0, NEW_DICT));
 }
 
 
@@ -304,8 +304,6 @@ void initializeDictionary(vector<tuple<int16_t, uint16_t>> &dictionary){
  Emties the dictionary and initializes it with all starting values
 ***/
 void emptyDictionary( vector<tuple<int16_t, uint16_t>> &dictionary){
-    //dictionary.clear();
-
     dictionary.erase(dictionary.begin(), dictionary.end());
     initializeDictionary(dictionary);
 }
@@ -314,9 +312,9 @@ void emptyDictionary( vector<tuple<int16_t, uint16_t>> &dictionary){
 /***
  Add a new word to the dictionary
 ***/
-void addWord(vector<tuple<int16_t, uint16_t>> &Dictionary, int16_t earlierCharIndex, uint16_t newChar){
-    if(debug) cout << "Adding <" << (int16_t)earlierCharIndex <<", " << (uint16_t)newChar << ">" << endl;
-    Dictionary.push_back(tuple<int16_t, uint16_t>(earlierCharIndex, newChar));
+void addWord(vector<tuple<int16_t, uint16_t>> &dictionary, int16_t earlierCharIndex, uint16_t newChar){
+    //cout << "Adding <" << (int16_t)earlierCharIndex <<", " << (uint16_t)newChar << ">" << endl;
+    dictionary.push_back(tuple<int16_t, uint16_t>(earlierCharIndex, newChar));
 }
 
 
@@ -324,11 +322,8 @@ void addWord(vector<tuple<int16_t, uint16_t>> &Dictionary, int16_t earlierCharIn
 Send an index to the output stream
 ***/
 void sendToOutput(ofstream &out, int16_t last_index, int bits_needed, uint8_t &intToSend, int &counter){
+    //cout << "Sending " << last_index << " with " << bits_needed << " bits" << endl;
 
-    if(bits_needed == 10){
-        cout << "interesting stuff" << endl;
-    }
-    if(debug) cout << "Bits needed:" << bits_needed << endl;
     int bits[12] = {0};
     for(int i = 0; i < bits_needed; i++){
         int16_t  tmpInt = last_index;
@@ -344,7 +339,6 @@ void sendToOutput(ofstream &out, int16_t last_index, int bits_needed, uint8_t &i
 
         bitWrite(bitToWrite, intToSend, out, counter);
     }
-
 }
 
 
@@ -361,7 +355,7 @@ uint16_t writeSymbols(ofstream &output, vector<std::tuple<int16_t, uint16_t>> &d
         symbol = get<1>(currentTuple);
     }
 
-    for(int i = 0; i < wordVector.size(); i++ ){
+    for(int i = 0; i < wordVector.size(); i++){
         if(wordVector[i] < 256){
             output.put((uint8_t)wordVector[i]);
         }
@@ -373,23 +367,12 @@ uint16_t writeSymbols(ofstream &output, vector<std::tuple<int16_t, uint16_t>> &d
 }
 
 
-bool existInDict(std::vector<std::tuple<int16_t, uint16_t>> &dictionary, int index){
-    return false;
-}
-
-
 /***
  Get index of word in dictionary or -1 if word do not exist.
+ @param dictionary is dictionary with all words
+ @param word is a vector with the letters of the word whose index you want to find
 ***/
 int getIndex(vector<tuple<int16_t, uint16_t>> &dictionary, vector<uint16_t> &word){
-    if(debug){
-        cout << "Word is: " << endl;
-        for(int j = 0; j < word.size(); j++){
-            cout << j << ":" << word[j] << endl;
-        }
-        cout << endl << endl;
-    }
-
 
     for(int index = 1; index < dictionary.size(); index++){
 
@@ -401,24 +384,18 @@ int getIndex(vector<tuple<int16_t, uint16_t>> &dictionary, vector<uint16_t> &wor
                 break;
             }
             else{
-                if(debug) cout << "It's a letter match" << endl;
                 int16_t newerIndex = get<0>(tmpTuple);
-                if(debug)cout << "NewerIndex(index of next symbol) is: " << newerIndex << endl;
-                if(debug)cout << "and place is: " << place << endl;
                 tmpTuple = dictionary.at(newerIndex);
                 symbol = get<1>(tmpTuple);
                 place--;
-                if(debug)cout << "Next symbol is:" << symbol << endl;
                 if(symbol == (uint16_t)EMPTY_CHAR && place == (int16_t)-1){
-                    if(debug) cout << "Full word match, returning index: " << index << endl;
                     return index;
                 }
-                if(debug)cout << "Check next letter" << endl;
             }
         }
     }
-    //Never reached! (Unless word is empty?)
-    //cout << "Reaching end -1 of getIndex!" << endl;
+
+    //If no match or word is empty
     return (int16_t)-1;
 }
 
@@ -434,32 +411,23 @@ int getIndex(vector<tuple<int16_t, uint16_t>> &dictionary, vector<uint16_t> &wor
 int16_t readIndex(ifstream &input, vector<tuple<int16_t, uint16_t>> &dictionary, int8_t shouldRead, int8_t &haveRead, int8_t &symbol){
 
     int16_t returnIndex = 0;
-    if(debug) cout << "Symbol is:" << symbol << endl;
+    int i = 0;
 
-    int8_t i = 0;
     while(i < shouldRead){
 
-
-        //if(debug) cout << "i is: " << (int)i << endl;
-        //if(debug) cout << "haveRead is: " << (int)haveRead << endl;
-
         if(haveRead == 8){
-
             symbol = (int8_t)input.get();
-            if(debug) cout << "Getting new symbol: " << (uint8_t)symbol << endl;
-
             haveRead = 0;
         }
+
         //Shift leftmost bit of symbol into rightmost bit of returnIndex
         int8_t tmpSymbol = symbol;
         int8_t leftmost = int8_t((tmpSymbol >> (7-haveRead)) & 0x01);
-        //if(debug) cout << "Leftmost is:" << (int)leftmost << endl;
         returnIndex = (returnIndex << 1) | leftmost;
-        //if(debug) cout << "returnIndex is:" << (int)returnIndex << endl;
-
 
         haveRead++;
         i++;
     }
+    cout << "Reading " << returnIndex << " with " << (int)shouldRead << " bits" << endl;
     return returnIndex;
 }
