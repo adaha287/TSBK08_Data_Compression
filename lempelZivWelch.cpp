@@ -97,7 +97,7 @@ void lzwCompress(const char *fileName){
         else{
 
             knownIndex = getIndex(dictionary, knownWord);
-
+            //TODO: //getIndex returnerar inte ett känt index! borde returnera 1328 här!
             output.push_back(dictionary.size());
             output.push_back(ceil(log2(dictionary.size())));
             output.push_back(knownIndex);
@@ -109,8 +109,8 @@ void lzwCompress(const char *fileName){
                 cout << (char)knownWord[i] << " ";
             }
             cout << endl;
+*/
 
-            */
             sendToOutput(outputStream, knownIndex, ceil(log2(dictionary.size())), intToSend, counter);
 
             addWord(dictionary, knownIndex, tmp_symbol);
@@ -137,6 +137,7 @@ void lzwCompress(const char *fileName){
     }
     */
     cout << endl;
+    cout << "Ductionary size: " << dictionary.size() << endl;
     cout << "Bits needed now:" << ceil(log2(dictionary.size())) << endl;
     cout << "size in bits: " << sizeOfCompressed << endl;
     cout << "Size in bytes: " << sizeOfCompressed/8 << endl;
@@ -227,9 +228,7 @@ void lzwDecompress(const char *fileName){
         indexes.push_back(dictionary.size());
         indexes.push_back(ceil(log2(dictionary.size())));
         indexes.push_back(index);
-        if(index == (int16_t)1023){
-            cout << "found it" << endl;
-        }
+
         if( index == 0){
             cout << "Could not find index" << endl;
         }
@@ -242,22 +241,30 @@ void lzwDecompress(const char *fileName){
             else {
                 //returns the last symbol in the index-chain (first letter in word)
                 uint16_t newSymbol = writeSymbols(output, dictionary, index);
+
                 addWord(dictionary, wordIndex, newSymbol);
+
                 wordIndex = index;
                 if(dictionary.size() == 4095 && emptied == false){
                     emptyDictionary(dictionary);
                     emptied = true;
                     output.flush();
+                    //write here aswell
+                    vector<uint16_t> tmp_vector (newSymbol);
+                    wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
                 }
                 else if(dictionary.size() == 4096){
                     emptyDictionary(dictionary);
                     emptied = true;
                     output.flush();
+                    vector<uint16_t> tmp_vector (newSymbol);
+                    wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
                 }
             }
         }
         else if(index == (int16_t)dictionary.size()){
             uint16_t newSymbol = writeSymbols(output, dictionary, wordIndex);
+            //cout << " " << (char)newSymbol << endl;
             output.put((int8_t) newSymbol);
 
             addWord(dictionary, wordIndex, newSymbol);
@@ -266,11 +273,15 @@ void lzwDecompress(const char *fileName){
                 emptyDictionary(dictionary);
                 emptied = true;
                 output.flush();
+                vector<uint16_t> tmp_vector (newSymbol);
+                wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
             }
             else if(dictionary.size() == 4096){
                 emptyDictionary(dictionary);
                 emptied = true;
                 output.flush();
+                vector<uint16_t> tmp_vector (newSymbol);
+                wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
             }
         }
         else{
@@ -322,7 +333,7 @@ void emptyDictionary( vector<tuple<int16_t, uint16_t>> &dictionary){
  Add a new word to the dictionary
 ***/
 void addWord(vector<tuple<int16_t, uint16_t>> &dictionary, int16_t earlierCharIndex, uint16_t newChar){
-    //cout << "Adding <" << (int16_t)earlierCharIndex <<", " << (uint16_t)newChar << ">" << endl;
+    //cout << (int16_t)earlierCharIndex <<" " << (uint16_t)newChar << endl;
     dictionary.push_back(tuple<int16_t, uint16_t>(earlierCharIndex, newChar));
 }
 
@@ -367,6 +378,10 @@ uint16_t writeSymbols(ofstream &output, vector<std::tuple<int16_t, uint16_t>> &d
     for(int i = 0; i < wordVector.size(); i++){
         if(wordVector[i] < 256){
             output.put((uint8_t)wordVector[i]);
+            //cout << (uint8_t)wordVector[i] << " ";
+            if(wordVector[i] == (uint8_t)42){
+                cout << "here is a star" << endl;
+            }
         }
         else{
             cout << "We have a problem, char is bigger than 256!!" << endl;
@@ -384,17 +399,16 @@ uint16_t writeSymbols(ofstream &output, vector<std::tuple<int16_t, uint16_t>> &d
 int getIndex(vector<tuple<int16_t, uint16_t>> &dictionary, vector<uint16_t> &word){
 
     for(int index = 1; index < dictionary.size(); index++){
-
         tuple<int16_t, uint16_t> tmpTuple = dictionary.at(index);
         uint16_t symbol = get<1>(tmpTuple);
         int16_t place = word.size()-1;
-        while(place > (int16_t)-1 && symbol != EMPTY_CHAR){
+        while(place > (int16_t)-1 && symbol != (uint16_t)EMPTY_CHAR){
             if(word[place] != symbol){
                 break;
             }
             else{
                 int16_t newerIndex = get<0>(tmpTuple);
-                tmpTuple = dictionary.at(newerIndex);
+                tmpTuple = dictionary[newerIndex];
                 symbol = get<1>(tmpTuple);
                 place--;
                 if(symbol == (uint16_t)EMPTY_CHAR && place == (int16_t)-1){
