@@ -135,7 +135,6 @@ void lzwDecompress(const char *fileName){
     initializeDictionary(dictionary);
     cout << "Initialization complete" << endl;
 
-    vector<int16_t > indexes;
     int8_t readingSymbol = (int8_t)input.get();
     int8_t haveRead = 0;
     int shouldRead = (int) ceil(log2(dictionary.size()));
