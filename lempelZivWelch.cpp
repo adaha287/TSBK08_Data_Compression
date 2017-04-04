@@ -15,7 +15,7 @@ using namespace std;
 void lzwCompress(const char *fileName){
     ifstream input(fileName, ifstream::in | ios::binary);
     if(!input.is_open()){
-        cout << "Error when opening inputfile, exiting." << endl;
+        cout << "Error when opening input file, exiting." << endl;
         exit(1);
     }
     const char *outputEnd(".lzw");
@@ -26,7 +26,7 @@ void lzwCompress(const char *fileName){
     ofstream outputStream;
     outputStream.open(outputName, ofstream::binary | ofstream::trunc);
     if(!outputStream.is_open()){
-        cout << "Could not open outputstream" << endl;
+        cout << "Could not open output stream" << endl;
     }
 
     vector<tuple<int16_t, uint16_t>> dictionary;
@@ -140,7 +140,6 @@ void lzwDecompress(const char *fileName){
     int8_t haveRead = 0;
     int shouldRead = (int) ceil(log2(dictionary.size()));
     int16_t index = readIndex(input, dictionary, shouldRead, haveRead, readingSymbol);
-    if(debug) cout << index << " with " << ceil(log2(dictionary.size())) << " bits. ";
 
     int16_t symbol = get<1>(dictionary[index]);
     if(symbol < 256) {
@@ -161,11 +160,7 @@ void lzwDecompress(const char *fileName){
         else{
             shouldRead = (int) ceil(log2(dictionary.size()+1));
         }
-
-
         index = readIndex(input, dictionary, shouldRead, haveRead, readingSymbol);
-        //cout << index << " with " << ceil(log2(dictionary.size())) << " bits." << endl;
-
 
         if( index == 0){
             cout << "Could not find index" << endl;
@@ -179,10 +174,7 @@ void lzwDecompress(const char *fileName){
             else {
                 //returns the last symbol in the index-chain (first letter in word)
                 uint16_t newSymbol = writeSymbols(output, dictionary, index);
-
                 addWord(dictionary, wordIndex, newSymbol);
-                if(debug) cout << index << " with " << ceil(log2(dictionary.size()-1)) << " bits. ";
-
                 wordIndex = index;
 
                 if(dictionary.size() == 4096){
@@ -197,10 +189,7 @@ void lzwDecompress(const char *fileName){
         else if(index == (int16_t)dictionary.size()){
             uint16_t newSymbol = writeSymbols(output, dictionary, wordIndex);
             output.put((int8_t) newSymbol);
-
             addWord(dictionary, wordIndex, newSymbol);
-            if(debug) cout << index << " with " << ceil(log2(dictionary.size()-1)) << " bits. ";
-
             wordIndex = index;
 
             if(dictionary.size() == 4096){
@@ -215,22 +204,9 @@ void lzwDecompress(const char *fileName){
             cout << "index: " << index << ". Dictionary size: " << dictionary.size() << "." << endl;
             cout << "Error in compressed index, index bigger than dictionary size" << endl;
             output.close();
-            /*
-            cout <<"Dictionary size: " << dictionary.size() << endl;
-            for(int i = 0; i < indexes.size(); i++){
-                if(i % 3 == 0) cout << endl;
-                cout << indexes[i]<< " ";
-            }
-            cout << endl;
-             */
             exit(-1);
         }
     }
-    if(debug) cout <<"Dictionary size: " << dictionary.size() << endl;
-    for(int i = 0; i < indexes.size(); i++){
-        cout << indexes[i];
-    }
-    cout << endl;
 }
 
 
