@@ -5,13 +5,6 @@
 //  Copyright © 2017 Adam Hansson. All rights reserved.
 //
 #include "lempelZivWelch.h"
-#include <string>
-#include <vector>
-#include <tuple>
-#include <stdio.h>
-#include <stdint.h> //int8_t, int16_t...
-#include <fstream> // input and output from file
-#include <iostream>
 #include <cmath> //ceil, log2
 #include "bitWrite.h"
 
