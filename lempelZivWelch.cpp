@@ -3,7 +3,7 @@
 //
 //  Created by Adam Hansson on 2017-01-25.
 //  Copyright © 2017 Adam Hansson. All rights reserved.
-//
+
 #include "lempelZivWelch.h"
 #include <cmath> //ceil, log2
 #include "bitWrite.h"
@@ -95,7 +95,6 @@ void lzwCompress(const char *fileName){
             knownWord.push_back(tmp_symbol);
         }
 
-
     }
     input.close();
 
@@ -135,25 +134,6 @@ void lzwDecompress(const char *fileName){
     cout << "Initialize the dictionary" << endl;
     initializeDictionary(dictionary);
     cout << "Initialization complete" << endl;
-
-/*
- *   [1] Initialize string table;
-     [2] get first code: <code>;
-     [3] output the string for <code> to the charstream;
-     [4] <old> = <code>;
-     [5] <code> <- next code in codestream;
-     [6] does <code> exist in the string table?
-      (yes: output the string for <code> to the charstream;
-            [...] <- translation for <old>;
-            K <- first character of translation for <code>;
-            add [...]K to the string table;
-            <old> <- <code>;  )
-      (no: [...] <- translation for <old>;
-            K <- first character of [...];
-            output [...]K to charstream and add it to string table;
-            <old> <- <code>  )
-     [7] go to [5];
-     */
 
     vector<int16_t > indexes;
     int8_t readingSymbol = (int8_t)input.get();
