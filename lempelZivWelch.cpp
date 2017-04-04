@@ -75,7 +75,7 @@ void lzwCompress(const char *fileName){
         testWord = knownWord;
         uint16_t tmp_symbol = (uint16_t) symbol;
         testWord.push_back(tmp_symbol);
-        index = getIndex(dictionary, testWord);
+        index = (int16_t) getIndex(dictionary, testWord);
 
 
         //if testWord exist in dictionary
@@ -199,7 +199,7 @@ void lzwDecompress(const char *fileName){
         }
         else if(index < dictionary.size()){
             if(index == (int16_t)257){ //PSEUDO_EOF
-                cout << "Ending" << endl;
+                cout << "End reached" << endl;
                 output.close();
                 break;
             }
@@ -223,7 +223,6 @@ void lzwDecompress(const char *fileName){
         }
         else if(index == (int16_t)dictionary.size()){
             uint16_t newSymbol = writeSymbols(output, dictionary, wordIndex);
-            //cout << " " << (char)newSymbol << endl;
             output.put((int8_t) newSymbol);
 
             addWord(dictionary, wordIndex, newSymbol);
@@ -354,7 +353,7 @@ int getIndex(vector<tuple<int16_t, uint16_t>> &dictionary, vector<uint16_t> &wor
         tuple<int16_t, uint16_t> tmpTuple = dictionary[index];
         uint16_t symbol = get<1>(tmpTuple);
         int16_t place = word.size()-1;
-        while(place > (int16_t)-1 && symbol != (uint16_t)EMPTY_CHAR){
+        while(place > (int16_t)-1 && symbol != (uint16_t) EMPTY_CHAR){
             if(word[place] != symbol){
                 break;
             }
@@ -363,7 +362,7 @@ int getIndex(vector<tuple<int16_t, uint16_t>> &dictionary, vector<uint16_t> &wor
                 tmpTuple = dictionary[newerIndex];
                 symbol = get<1>(tmpTuple);
                 place--;
-                if(symbol == (uint16_t)EMPTY_CHAR && place == (int16_t)-1){
+                if(symbol == (uint16_t) EMPTY_CHAR && place == (int16_t)-1){
                     return index;
                 }
             }
@@ -403,6 +402,5 @@ int16_t readIndex(ifstream &input, vector<tuple<int16_t, uint16_t>> &dictionary,
         haveRead++;
         i++;
     }
-    //cout << "Reading " << returnIndex << " with " << (int)shouldRead << " bits" << endl;
     return returnIndex;
 }
