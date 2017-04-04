@@ -17,7 +17,7 @@
 
 using namespace std;
 
-#define debug true
+#define debug false
 
 void lzwCompress(const char *fileName){
     ifstream input(fileName, ifstream::in | ios::binary);
@@ -36,13 +36,11 @@ void lzwCompress(const char *fileName){
         cout << "Could not open outputstream" << endl;
     }
 
-
     vector<tuple<int16_t, uint16_t>> dictionary;
     initializeDictionary(dictionary);
 
     vector<uint16_t> knownWord;
     vector<uint16_t> testWord;
-    vector<int16_t> output; //temporary output vector when not having a file to write to
     int16_t index = 0;
     uint8_t symbol;
     int sizeOfCompressed = 0;
@@ -60,12 +58,10 @@ void lzwCompress(const char *fileName){
         //if end_of_file, send what we haven't send yet and then send the PSEUDO_EOF
         if(input.eof()) {
 
-            sizeOfCompressed += ceil(log2(dictionary.size())); //For calculating rate
+            sizeOfCompressed += ceil(log2(dictionary.size())); //For calculating statistics
             sendToOutput(outputStream, getIndex(dictionary, knownWord), (int) ceil(log2(dictionary.size())), intToSend, counter);
 
-            if(debug) cout << "getIndex EOF_END" << endl;
             sizeOfCompressed += ceil(log2(dictionary.size()));
-            output.push_back(257); //index of PSEUDO_EOF
 
             sendToOutput(outputStream, 257, (int) ceil(log2(dictionary.size())), intToSend, counter);
             //Maybe need padding??
@@ -91,11 +87,8 @@ void lzwCompress(const char *fileName){
         else{
 
             knownIndex = (int16_t) getIndex(dictionary, knownWord);
-
             sizeOfCompressed += ceil(log2(dictionary.size()));
-
             sendToOutput(outputStream, knownIndex, (int) ceil(log2(dictionary.size())), intToSend, counter);
-            cout << knownIndex << " with " << (int) ceil(log2(dictionary.size())) << " bits. ";
             addWord(dictionary, knownIndex, tmp_symbol);
 
             if(dictionary.size() == 4096){
@@ -174,12 +167,11 @@ void lzwDecompress(const char *fileName){
     int8_t haveRead = 0;
     int shouldRead = (int) ceil(log2(dictionary.size()));
     int16_t index = readIndex(input, dictionary, shouldRead, haveRead, readingSymbol);
-    cout << index << " with " << ceil(log2(dictionary.size())) << " bits. ";
-    bool emptied = false;
+    if(debug) cout << index << " with " << ceil(log2(dictionary.size())) << " bits. ";
 
     int16_t symbol = get<1>(dictionary[index]);
     if(symbol < 256) {
-        //cout << "Writing first character: " << (uint8_t) symbol << endl;
+
         output.put((uint8_t) symbol);
     }
     else if(symbol == 257) cout << "END, no input detected" << endl;
@@ -189,10 +181,7 @@ void lzwDecompress(const char *fileName){
 
     int16_t wordIndex = index;
     while(!input.eof()){
-/*        if(emptied){
-            shouldRead = (int) ceil(log2(dictionary.size()));
-        }
-*/
+
         if(dictionary.size() == 4095){
             shouldRead = 9;
         }
@@ -219,7 +208,7 @@ void lzwDecompress(const char *fileName){
                 uint16_t newSymbol = writeSymbols(output, dictionary, index);
 
                 addWord(dictionary, wordIndex, newSymbol);
-                cout << index << " with " << ceil(log2(dictionary.size()-1)) << " bits. ";
+                if(debug) cout << index << " with " << ceil(log2(dictionary.size()-1)) << " bits. ";
 
                 wordIndex = index;
 
@@ -229,7 +218,6 @@ void lzwDecompress(const char *fileName){
                     vector<uint16_t> tmp_vector;
                     tmp_vector.push_back(newSymbol);
                     wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
-                    cout << "wordIndex is:" << wordIndex << endl;
                 }
             }
         }
@@ -239,28 +227,16 @@ void lzwDecompress(const char *fileName){
             output.put((int8_t) newSymbol);
 
             addWord(dictionary, wordIndex, newSymbol);
-            cout << index << " with " << ceil(log2(dictionary.size()-1)) << " bits. ";
+            if(debug) cout << index << " with " << ceil(log2(dictionary.size()-1)) << " bits. ";
 
             wordIndex = index;
-            /*
-            if(dictionary.size() == 4096 && emptied == false){
-                emptyDictionary(dictionary);
-                emptied = true;
-                output.flush();
-                vector<uint16_t> tmp_vector (newSymbol);
-                wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
 
-            }
-            else */
             if(dictionary.size() == 4096){
                 emptyDictionary(dictionary);
-                emptied = true;
                 output.flush();
                 vector<uint16_t> tmp_vector;
                 tmp_vector.push_back(newSymbol);
                 wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
-                cout << "wordIndex(2) is:" << wordIndex << endl;
-
             }
         }
         else{
@@ -278,7 +254,7 @@ void lzwDecompress(const char *fileName){
             exit(-1);
         }
     }
-    cout <<"Dictionary size: " << dictionary.size() << endl;
+    if(debug) cout <<"Dictionary size: " << dictionary.size() << endl;
     for(int i = 0; i < indexes.size(); i++){
         cout << indexes[i];
     }
@@ -312,9 +288,9 @@ void emptyDictionary( vector<tuple<int16_t, uint16_t>> &dictionary){
  Add a new word to the dictionary
 ***/
 void addWord(vector<tuple<int16_t, uint16_t>> &dictionary, int16_t earlierCharIndex, uint16_t newChar){
-    cout << (int16_t)earlierCharIndex <<" " << (uint16_t)newChar << endl;
+    if(debug)cout << (int16_t)earlierCharIndex <<" " << (uint16_t)newChar << endl;
     dictionary.push_back(tuple<int16_t, uint16_t>(earlierCharIndex, newChar));
-    cout << "Size: " << dictionary.size() << endl;
+    if(debug)cout << "Size: " << dictionary.size() << endl;
 }
 
 
