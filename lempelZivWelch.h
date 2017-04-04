@@ -36,7 +36,7 @@ void sendToOutput(std::ofstream &out, int16_t last_index, int bits_needed, uint8
 
 int getIndex(std::vector<std::tuple<int16_t, uint16_t>> &dictionary, std::vector<uint16_t> &word);
 
-int16_t readIndex(std::ifstream &input, std::vector<std::tuple<int16_t, uint16_t>> &dictionary, int8_t shouldRead, int8_t &haveRead, int8_t &symbol);
+int16_t readIndex(std::ifstream &input, std::vector<std::tuple<int16_t, uint16_t>> &dictionary, int shouldRead, int8_t &haveRead, int8_t &symbol);
 
 //Returns the first letter in the word written
 uint16_t writeSymbols(std::ofstream &output, std::vector<std::tuple<int16_t, uint16_t>> &dictionary, int index);
