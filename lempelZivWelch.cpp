@@ -139,7 +139,7 @@ void lzwDecompress(const char *fileName){
     int8_t haveRead = 0;
     int shouldRead = (int) ceil(log2(dictionary.size()));
     int16_t index = readIndex(input, dictionary, shouldRead, haveRead, readingSymbol);
-
+    uint16_t newSymbol;
     int16_t symbol = get<1>(dictionary[index]);
     if(symbol < 256) {
 
@@ -161,8 +161,9 @@ void lzwDecompress(const char *fileName){
         }
         index = readIndex(input, dictionary, shouldRead, haveRead, readingSymbol);
 
-        if( index == 0){
-            cout << "Could not find index" << endl;
+        if(index == 0){
+            cout << "Error: could not find index" << endl;
+            exit(1);
         }
         else if(index < dictionary.size()){
             if(index == (int16_t)257){ //PSEUDO_EOF
@@ -172,32 +173,18 @@ void lzwDecompress(const char *fileName){
             }
             else {
                 //returns the last symbol in the index-chain (first letter in word)
-                uint16_t newSymbol = writeSymbols(output, dictionary, index);
+                newSymbol = writeSymbols(output, dictionary, index);
                 addWord(dictionary, wordIndex, newSymbol);
                 wordIndex = index;
-
-                if(dictionary.size() == 4096){
-                    emptyDictionary(dictionary);
-                    output.flush();
-                    vector<uint16_t> tmp_vector;
-                    tmp_vector.push_back(newSymbol);
-                    wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
-                }
             }
         }
         else if(index == (int16_t)dictionary.size()){
-            uint16_t newSymbol = writeSymbols(output, dictionary, wordIndex);
+            newSymbol = writeSymbols(output, dictionary, wordIndex);
             output.put((int8_t) newSymbol);
             addWord(dictionary, wordIndex, newSymbol);
             wordIndex = index;
 
-            if(dictionary.size() == 4096){
-                emptyDictionary(dictionary);
-                output.flush();
-                vector<uint16_t> tmp_vector;
-                tmp_vector.push_back(newSymbol);
-                wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
-            }
+
         }
         else{
             cout << "index: " << index << ". Dictionary size: " << dictionary.size() << "." << endl;
@@ -205,6 +192,14 @@ void lzwDecompress(const char *fileName){
             output.close();
             exit(-1);
         }
+        if(dictionary.size() == 4096){
+            emptyDictionary(dictionary);
+            output.flush();
+            vector<uint16_t> tmp_vector;
+            tmp_vector.push_back(newSymbol);
+            wordIndex = (int16_t)getIndex(dictionary, tmp_vector);
+        }
+
     }
 }
 
@@ -291,7 +286,7 @@ uint16_t writeSymbols(ofstream &output, vector<std::tuple<int16_t, uint16_t>> &d
 
 
 /***
- Get index of word in dictionary or -1 if word do not exist.
+ Search for a word in the dictionary, return the index of the word or -1 if word do not exist.
  @param dictionary is dictionary with all words
  @param word is a vector with the letters of the word whose index you want to find
 ***/
